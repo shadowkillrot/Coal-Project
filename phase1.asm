@@ -1,128 +1,91 @@
 org 100h
-
 section .data
     SCREEN_WIDTH    equ 80
     SCREEN_HEIGHT   equ 25
-    
     GRASS_START     equ 0
     GRASS_WIDTH     equ 8
-    
     BORDER1_COL     equ 8      
     BORDER1_WIDTH   equ 2
-    
     FOOTPATH1_COL   equ 10     
     FOOTPATH1_WIDTH equ 2
-    
     ROAD_START      equ 12     
     ROAD_WIDTH      equ 40      
     ROAD_END        equ 52
-    
-    FOOTPATH2_COL   equ 52      ; White footpath right
+    FOOTPATH2_COL   equ 52      
     FOOTPATH2_WIDTH equ 2
-    
-    BORDER2_COL     equ 54      ; Red border right
+    BORDER2_COL     equ 54      
     BORDER2_WIDTH   equ 2
-    
     GRASS_END_COL   equ 56
-    HUD_START       equ 64      ; HUD for phase 2
-    
-    ; Lane configuration
+    HUD_START       equ 64      
     NUM_LANES       equ 3
-    LANE_WIDTH      equ 13      ; Approximately 13 columns per lane
-    LANE1_CENTER    equ 18      ; Left lane center
-    LANE2_CENTER    equ 32      ; Middle lane center
-    LANE3_CENTER    equ 45      ; Right lane center
-    
-    DIVIDER1_COL    equ 25      ; First divider
-    DIVIDER2_COL    equ 38      ; Second divider
-    
-    ; Car settings
+    LANE_WIDTH      equ 13      
+    LANE1_CENTER    equ 18      
+    LANE2_CENTER    equ 32      
+    LANE3_CENTER    equ 45      
+    DIVIDER1_COL    equ 25      
+    DIVIDER2_COL    equ 38      
     CAR_WIDTH       equ 5
     CAR_HEIGHT      equ 3
-    
-    ; Enhanced color scheme
-    COLOR_GRASS     equ 66h     ; Brown background (06h text)
-    COLOR_BORDER    equ 4Ch     ; Red background, bright yellow text
-    COLOR_FOOTPATH  equ 7Fh     ; White on white
-    COLOR_ROAD      equ 08h     ; Dark gray
-    COLOR_DIVIDER   equ 0Fh     ; Bright white
-    COLOR_PLAYER    equ 4Eh     ; Red bg, yellow text (bottom car)
-    COLOR_PLAYER2   equ 3Bh     ; Cyan detail
-    COLOR_OBSTACLE  equ 0Eh     ; Black bg, yellow text (top car)
-    COLOR_OBST2     equ 09h     ; Blue detail
-    COLOR_HUD       equ 70h     ; Gray background
-    
-    ; Game state
+    COLOR_GRASS     equ 66h     
+    COLOR_BORDER    equ 4Ch     
+    COLOR_FOOTPATH  equ 7Fh     
+    COLOR_ROAD      equ 08h     
+    COLOR_DIVIDER   equ 0Fh     
+    COLOR_PLAYER    equ 4Eh     
+    COLOR_PLAYER2   equ 3Bh     
+    COLOR_OBSTACLE  equ 0Eh     
+    COLOR_OBST2     equ 09h     
+    COLOR_HUD       equ 70h     
     player_col      db LANE2_CENTER
     player_row      db 20
     obstacle_col    db LANE1_CENTER
     obstacle_row    db 5
-    rand_seed       dw 12345        ; Random seed for obstacle position
-
+    rand_seed       dw 12345        
 section .text
 start:
-    ; Set 80x25 text mode
     mov ax, 0003h
     int 10h
-    
-    ; Hide cursor
     mov ah, 01h
     mov cx, 2000h
     int 10h
-    
-    ; Randomize obstacle position
     call randomize_obstacle
-
 main_loop:
     call draw_scene
-    
-    ; Small delay
     call delay
-    
-    ; Check keyboard
     mov ah, 01h
     int 16h
     jz main_loop
-    
     mov ah, 00h
     int 16h
-    
-    cmp al, 27          ; ESC
+    cmp al, 27          
     je exit_game
-    
-    cmp ah, 4Bh         ; Left arrow
+    cmp ah, 4Bh         
     je move_left
-    cmp ah, 4Dh         ; Right arrow  
+    cmp ah, 4Dh         
     je move_right
-    
     jmp main_loop
-
 move_left:
     mov al, [player_col]
     cmp al, LANE1_CENTER
     jle main_loop
     cmp al, LANE3_CENTER
     je .from_lane3
-    ; From lane 2 to lane 1
     mov byte [player_col], LANE1_CENTER
     jmp main_loop
 .from_lane3:
     mov byte [player_col], LANE2_CENTER
     jmp main_loop
-
 move_right:
     mov al, [player_col]
     cmp al, LANE3_CENTER
     jge main_loop
     cmp al, LANE1_CENTER
     je .from_lane1
-    ; From lane 2 to lane 3
     mov byte [player_col], LANE3_CENTER
     jmp main_loop
 .from_lane1:
     mov byte [player_col], LANE2_CENTER
     jmp main_loop
-
 exit_game:
     mov ah, 01h
     mov cx, 0607h
@@ -131,8 +94,6 @@ exit_game:
     int 10h
     mov ax, 4C00h
     int 21h
-
-; Draw entire scene
 draw_scene:
     call draw_grass_areas
     call draw_borders
@@ -143,191 +104,143 @@ draw_scene:
     call draw_obstacle_car
     call draw_player_car
     ret
-
-; Draw grass on left and right
 draw_grass_areas:
     push ax
     push bx
     push cx
     push dx
-    
     mov ah, 09h
     mov bh, 0
     mov bl, COLOR_GRASS
-    mov al, 0xB1        ; Medium shade for grass texture
-    
+    mov al, 0xB1        
     mov dh, 0
 .row_loop:
-    ; Left grass
     mov dl, GRASS_START
     call set_cursor
     mov cx, GRASS_WIDTH
     int 10h
-    
-    ; Right grass
     mov dl, GRASS_END_COL
     call set_cursor
     mov cx, HUD_START - GRASS_END_COL
     int 10h
-    
     inc dh
     cmp dh, SCREEN_HEIGHT
     jl .row_loop
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
-; Draw red borders
 draw_borders:
     push ax
     push bx
     push cx
     push dx
-    
     mov ah, 09h
     mov bh, 0
     mov bl, COLOR_BORDER
-    mov al, 0xDB        ; Full block
-    
+    mov al, 0xDB        
     mov dh, 0
 .row_loop:
-    ; Left border
     mov dl, BORDER1_COL
     call set_cursor
     mov cx, BORDER1_WIDTH
     int 10h
-    
-    ; Right border
     mov dl, BORDER2_COL
     call set_cursor
     mov cx, BORDER2_WIDTH
     int 10h
-    
     inc dh
     cmp dh, SCREEN_HEIGHT
     jl .row_loop
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
-; Draw white footpaths with pattern
 draw_footpaths:
     push ax
     push bx
     push cx
     push dx
-    
     mov ah, 09h
     mov bh, 0
     mov bl, COLOR_FOOTPATH
-    
     mov dh, 0
 .row_loop:
-    ; Alternate pattern
     mov al, dh
     and al, 03h
-    
     cmp al, 0
     je .pattern_red
     cmp al, 2
     je .pattern_red
-    
-    ; White pattern
     mov al, 0xDB
     jmp .draw_footpaths
-    
 .pattern_red:
     mov bl, COLOR_BORDER
     mov al, 0xDB
-    
 .draw_footpaths:
-    ; Left footpath
     push bx
     mov dl, FOOTPATH1_COL
     call set_cursor
     mov cx, FOOTPATH1_WIDTH
     int 10h
     pop bx
-    
-    ; Right footpath
     mov dl, FOOTPATH2_COL
     call set_cursor
     mov cx, FOOTPATH2_WIDTH
     int 10h
-    
-    mov bl, COLOR_FOOTPATH  ; Reset color
-    
+    mov bl, COLOR_FOOTPATH  
     inc dh
     cmp dh, SCREEN_HEIGHT
     jl .row_loop
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
-; Draw road surface
 draw_road_surface:
     push ax
     push bx
     push cx
     push dx
-    
     mov ah, 09h
     mov bh, 0
     mov bl, COLOR_ROAD
-    mov al, 0xB0        ; Light shade for road texture
-    
+    mov al, 0xB0        
     mov dh, 0
 .row_loop:
     mov dl, ROAD_START
     call set_cursor
     mov cx, ROAD_WIDTH
     int 10h
-    
     inc dh
     cmp dh, SCREEN_HEIGHT
     jl .row_loop
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
-; Draw lane dividers (dashed white lines)
 draw_lane_dividers:
     push ax
     push bx
     push cx
     push dx
-    
     mov dh, 0
 .row_loop:
-    ; Check if this row should have divider (pattern: 2 on, 2 off)
     mov al, dh
-    and al, 03h         ; Get remainder when divided by 4
+    and al, 03h         
     cmp al, 2
-    jge .skip_row       ; Skip if 2 or 3
-    
-    ; Draw first divider
+    jge .skip_row       
     mov dl, DIVIDER1_COL
     call set_cursor
     mov ah, 09h
     mov bh, 0
     mov bl, COLOR_DIVIDER
-    mov al, 0xDB        ; Full block
+    mov al, 0xDB        
     mov cx, 1
     int 10h
-    
-    ; Draw second divider
     mov dl, DIVIDER2_COL
     call set_cursor
     mov ah, 09h
@@ -336,42 +249,33 @@ draw_lane_dividers:
     mov al, 0xDB
     mov cx, 1
     int 10h
-    
 .skip_row:
     inc dh
     cmp dh, SCREEN_HEIGHT
     jl .row_loop
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
-; Draw HUD area (reserved for phase 2)
 draw_hud_area:
     push ax
     push bx
     push cx
     push dx
-    
     mov ah, 09h
     mov bh, 0
     mov bl, COLOR_HUD
     mov al, ' '
-    
     mov dh, 0
 .row_loop:
     mov dl, HUD_START
     call set_cursor
     mov cx, SCREEN_WIDTH - HUD_START
     int 10h
-    
     inc dh
     cmp dh, SCREEN_HEIGHT
     jl .row_loop
-    
-    ; Draw left border of HUD
     mov dh, 0
 .border_loop:
     mov dl, HUD_START
@@ -384,25 +288,19 @@ draw_hud_area:
     inc dh
     cmp dh, SCREEN_HEIGHT
     jl .border_loop
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
-; Draw player car (bottom car - red/yellow)
 draw_player_car:
     push ax
     push bx
     push cx
     push dx
-    
     mov dh, [player_row]
     mov dl, [player_col]
     sub dl, 2
-    
-    ; Top part (yellow)
     call set_cursor
     mov ah, 09h
     mov bh, 0
@@ -410,18 +308,14 @@ draw_player_car:
     mov al, 0xDC
     mov cx, CAR_WIDTH
     int 10h
-    
-    ; Middle (black/red body)
     inc dh
     mov dl, [player_col]
     sub dl, 2
     call set_cursor
-    mov bl, 00h         ; Black
+    mov bl, 00h         
     mov al, 0xDB
     mov cx, CAR_WIDTH
     int 10h
-    
-    ; Bottom (cyan wheels)
     inc dh
     mov dl, [player_col]
     sub dl, 2
@@ -430,33 +324,25 @@ draw_player_car:
     mov al, 0xDF
     mov cx, CAR_WIDTH
     int 10h
-    
-    ; Add red detail on bottom
     mov dl, [player_col]
     call set_cursor
     mov bl, COLOR_PLAYER
     mov al, 0xDB
     mov cx, 1
     int 10h
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
-; Draw obstacle car (top car - yellow/blue)
 draw_obstacle_car:
     push ax
     push bx
     push cx
     push dx
-    
     mov dh, [obstacle_row]
     mov dl, [obstacle_col]
     sub dl, 2
-    
-    ; Top part (cyan)
     call set_cursor
     mov ah, 09h
     mov bh, 0
@@ -464,8 +350,6 @@ draw_obstacle_car:
     mov al, 0xDC
     mov cx, CAR_WIDTH
     int 10h
-    
-    ; Middle (black body)
     inc dh
     mov dl, [obstacle_col]
     sub dl, 2
@@ -474,8 +358,6 @@ draw_obstacle_car:
     mov al, 0xDB
     mov cx, CAR_WIDTH
     int 10h
-    
-    ; Bottom (yellow)
     inc dh
     mov dl, [obstacle_col]
     sub dl, 2
@@ -484,13 +366,11 @@ draw_obstacle_car:
     mov al, 0xDF
     mov cx, CAR_WIDTH
     int 10h
-    
     pop dx
     pop cx
     pop bx
     pop ax
     ret
-
 set_cursor:
     push ax
     push bx
@@ -500,7 +380,6 @@ set_cursor:
     pop bx
     pop ax
     ret
-
 delay:
     push ax
     push cx
@@ -515,38 +394,26 @@ delay:
     pop cx
     pop ax
     ret
-
 randomize_obstacle:
     push ax
     push dx
-    
-    ; Get system time for randomness
     mov ah, 00h
     int 1Ah           
-    
-    ; Use DX as random seed
     mov ax, dx
     mov dx, 0
     mov bx, 3         
     div bx              
-    
-    ; Set lane based on remainder
     cmp dl, 0
     je .lane1
     cmp dl, 1
     je .lane2
-    
-    ; Lane 3
     mov byte [obstacle_col], LANE3_CENTER
     jmp .done
-    
 .lane1:
     mov byte [obstacle_col], LANE1_CENTER
     jmp .done
-    
 .lane2:
     mov byte [obstacle_col], LANE2_CENTER
-    
 .done:
     pop dx
     pop ax
